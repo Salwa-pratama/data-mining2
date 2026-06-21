@@ -1,0 +1,18 @@
+./datasets
+./models
+# Mengabaikan data mentah dan model hasil training (Ukuran besar)
+datasets/
+models/
+images/
+
+# Mengabaikan file konfigurasi lokal / credential / API Keys
+.env
+
+# Mengabaikan virtual environment Python (jika kamu pakai di lokal, misal .venv atau venv)
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Mengabaikan dependencies frontend (jika folder frontend kamu pakai node_modules)
+frontend/node_modules/

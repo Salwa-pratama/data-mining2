@@ -1,0 +1,3 @@
+jumlah class : 2 (dog, cat)
+jumlah gambar : 24998
+
