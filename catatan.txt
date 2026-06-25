@@ -1,0 +1,8 @@
+Projek 1 memiliki dataset yang sangat besar
+
+maka ini harus dipotong sebesar 500rb data saja secara acak untuk efisiensi
+
+
+opsi lain selain dipotong kita bisa gunakan library polars
+
+tapi untuk saat ini aku masih menggunakan alternatif yaitu memaangkas data
