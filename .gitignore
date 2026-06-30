@@ -16,3 +16,4 @@ __pycache__/
 
 # Mengabaikan dependencies frontend (jika folder frontend kamu pakai node_modules)
 frontend/node_modules/
+done/*
