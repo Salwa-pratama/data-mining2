@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #000000;
+  --foreground: #ffffff;
 }
 
 @theme inline {
@@ -12,15 +12,120 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-poppins), sans-serif;
+  overflow-x: hidden;
 }
+
+/* Ape Terminal Grid Effect */
+.bg-grid {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  background-color: #000;
+  background-image: 
+    linear-gradient(to right, rgba(0, 255, 0, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 255, 0, 0.05) 1px, transparent 1px);
+  background-size: 50px 50px;
+  transform: perspective(500px) rotateX(60deg) translateY(-100px) scale(2);
+  transform-origin: top;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.bg-grid-fade {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  background: radial-gradient(circle at center, transparent 0%, #000 70%);
+  pointer-events: none;
+}
+
+/* Faded Graffiti Text Effect */
+.graffiti-text {
+  position: absolute;
+  font-family: 'Permanent Marker', cursive;
+  color: rgba(74, 222, 128, 0.05); /* Very faint green */
+  font-size: 8rem;
+  font-weight: 900;
+  transform: rotate(-10deg);
+  pointer-events: none;
+  z-index: -1;
+  white-space: nowrap;
+}
+
+/* Glassmorphism utility for cards */
+.glass-panel {
+  background: rgba(24, 24, 27, 0.6); /* zinc-900 with opacity */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* Neon glow for specific borders */
+.glow-border-bottom {
+  position: relative;
+}
+.glow-border-bottom::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(163, 230, 53, 0.5), transparent); /* lime-400 */
+}
+
+/* Custom Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(163, 230, 53, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(163, 230, 53, 0.8);
+  }
+}
+
+.animate-glow-pulse {
+  animation: glowPulse 2s infinite ease-in-out;
+}
+
+/* Stagger delays */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+
+/* Hide Scrollbar */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+

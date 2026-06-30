@@ -359,6 +359,58 @@ async def predict_catdog(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Prediksi gagal: {str(e)}")
 
 
+
+# ── Cat vs Dog Analysis Endpoint ──────────────────────────────────
+_analysis_cache = None
+
+def get_class_counts(split_dir: Path):
+    counts = {}
+    if not split_dir.exists():
+        return counts
+    for cls_dir in sorted(split_dir.iterdir()):
+        if cls_dir.is_dir():
+            n = sum(1 for f in cls_dir.rglob("*") if f.suffix.lower() in {".jpg", ".jpeg", ".png", ".bmp", ".webp"})
+            counts[cls_dir.name] = n
+    return counts
+
+@app.get("/api/catdog/analysis")
+def catdog_analysis():
+    global _analysis_cache
+    
+    # 1. CNN Architecture
+    architecture = []
+    total_params = 0
+    if catdog_model is not None:
+        total_params = catdog_model.count_params()
+        for layer in catdog_model.layers:
+            out_shape = str(layer.output_shape) if hasattr(layer, "output_shape") else "N/A"
+            n_params = layer.count_params()
+            architecture.append({
+                "Layer": layer.name,
+                "Tipe": layer.__class__.__name__,
+                "OutputShape": out_shape,
+                "Parameter": n_params
+            })
+
+    # 2. Dataset Distribution (Cached to save time)
+    if _analysis_cache is None:
+        data_dir = WORKSPACE_ROOT / "datasets" / "project2" / "cnn"
+        splits = ["train", "valid", "test"]
+        distribution = {}
+        for split in splits:
+            split_dir = data_dir / split
+            counts = get_class_counts(split_dir)
+            total = sum(counts.values())
+            distribution[split] = {"counts": counts, "total": total}
+        
+        _analysis_cache = distribution
+
+    return {
+        "architecture": architecture,
+        "total_params": total_params,
+        "distribution": _analysis_cache
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
