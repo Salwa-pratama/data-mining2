@@ -5,6 +5,7 @@ datasets/
 models/
 images/
 data-tes/*.csv
+
 # Mengabaikan file konfigurasi lokal / credential / API Keys
 .env
 
@@ -15,4 +16,10 @@ __pycache__/
 *.pyc
 
 # Mengabaikan dependencies frontend (jika folder frontend kamu pakai node_modules)
-frontend/node_modules/
+# frontend/node_modules/
+done/*
+frontend/backend/test/*.csv
+done/data-tes/
+done/model.pkl/
+
+frontend/backend/test/us-accident-test-data.csv
