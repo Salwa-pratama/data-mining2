@@ -4,7 +4,7 @@
 datasets/
 models/
 images/
-
+data-tes/*.csv
 # Mengabaikan file konfigurasi lokal / credential / API Keys
 .env
 
