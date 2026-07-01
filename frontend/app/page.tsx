@@ -1,29 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-
-// ── Simple CSV Parser ─────────────────────────────────────────────
-const parseCSV = (text: string) => {
-  const lines = text.split(/\r?\n/);
-  if (lines.length === 0) return { headers: [], rows: [] };
-  
-  const headers = lines[0].split(',').map(h => h.trim());
-  const rows: Record<string, string>[] = [];
-  
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    
-    const values = line.split(',');
-    const obj: Record<string, string> = {};
-    headers.forEach((header, index) => {
-      obj[header] = (values[index] || '').trim().replace(/^"|"$/g, '');
-    });
-    rows.push(obj);
-  }
-  
-  return { headers, rows };
-};
+import Papa from "papaparse";
 
 // ── Types ─────────────────────────────────────────────────────────
 interface PredictionResult {
@@ -60,6 +38,7 @@ export default function PredictionDashboard() {
   // CSV Predict States
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [rowLimit, setRowLimit] = useState<number>(500);
+  const [isCsvScaled, setIsCsvScaled] = useState<boolean>(false);
   const [parsedRows, setParsedRows] = useState<Record<string, string>[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
@@ -156,20 +135,32 @@ export default function PredictionDashboard() {
       setParsedRows([]);
       setIsParsingCsv(true);
       
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target?.result as string;
-        try {
-          const { headers: parsedHeaders, rows: parsed } = parseCSV(text);
-          setHeaders(parsedHeaders);
-          setParsedRows(parsed);
-        } catch (err) {
-          setErrorMsg("Gagal memproses file CSV. Format tidak didukung.");
-        } finally {
+      const maxSizeBytes = 5 * 1024 * 1024; // 5 MB slice to prevent memory issues
+      const fileSlice = file.size > maxSizeBytes ? file.slice(0, maxSizeBytes) : file;
+      
+      Papa.parse(fileSlice, {
+        header: true,
+        skipEmptyLines: true,
+        preview: 10000, // Limit to 10k rows
+        complete: (results) => {
+          if (results.data && results.data.length > 0) {
+            setHeaders(results.meta.fields || []);
+            // Clean up the last row if it's cut off due to slicing
+            let validRows = results.data as Record<string, string>[];
+            if (file.size > maxSizeBytes && validRows.length > 0) {
+              validRows.pop(); // Remove the last potentially incomplete row
+            }
+            setParsedRows(validRows);
+          } else {
+            setErrorMsg("0 baris terdeteksi atau file CSV kosong.");
+          }
+          setIsParsingCsv(false);
+        },
+        error: (error) => {
+          setErrorMsg("Gagal memproses file CSV: " + error.message);
           setIsParsingCsv(false);
         }
-      };
-      reader.readAsText(file);
+      });
     }
   };
 
@@ -189,20 +180,32 @@ export default function PredictionDashboard() {
         setParsedRows([]);
         setIsParsingCsv(true);
         
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const text = event.target?.result as string;
-          try {
-            const { headers: parsedHeaders, rows: parsed } = parseCSV(text);
-            setHeaders(parsedHeaders);
-            setParsedRows(parsed);
-          } catch (err) {
-            setErrorMsg("Gagal memproses file CSV. Format tidak didukung.");
-          } finally {
+        const maxSizeBytes = 5 * 1024 * 1024; // 5 MB slice to prevent memory issues
+        const fileSlice = file.size > maxSizeBytes ? file.slice(0, maxSizeBytes) : file;
+        
+        Papa.parse(fileSlice, {
+          header: true,
+          skipEmptyLines: true,
+          preview: 10000,
+          complete: (results) => {
+            if (results.data && results.data.length > 0) {
+              setHeaders(results.meta.fields || []);
+              // Clean up the last row if it's cut off due to slicing
+              let validRows = results.data as Record<string, string>[];
+              if (file.size > maxSizeBytes && validRows.length > 0) {
+                validRows.pop(); // Remove the last potentially incomplete row
+              }
+              setParsedRows(validRows);
+            } else {
+              setErrorMsg("0 baris terdeteksi atau file CSV kosong.");
+            }
+            setIsParsingCsv(false);
+          },
+          error: (error) => {
+            setErrorMsg("Gagal memproses file CSV: " + error.message);
             setIsParsingCsv(false);
           }
-        };
-        reader.readAsText(file);
+        });
       } else {
         setErrorMsg("Silakan unggah file dengan ekstensi .csv");
       }
@@ -266,7 +269,7 @@ export default function PredictionDashboard() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ batch: formattedBatch }),
+          body: JSON.stringify({ batch: formattedBatch, is_scaled: isCsvScaled }),
         });
 
         if (!response.ok) {
@@ -629,7 +632,7 @@ export default function PredictionDashboard() {
                     value={rowLimit}
                     onChange={(e) => setRowLimit(parseInt(e.target.value))}
                     disabled={isProcessing || isParsingCsv}
-                    className="w-full bg-white border-2 border-black rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none focus:border-indigo-500 disabled:opacity-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-black"
+                    className="w-full bg-white border-2 border-black rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none focus:border-indigo-500 disabled:opacity-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-black mb-4"
                   >
                     <option value={100}>100 Baris Pertama</option>
                     <option value={500}>500 Baris Pertama</option>
@@ -637,6 +640,19 @@ export default function PredictionDashboard() {
                     <option value={5000}>5.000 Baris Pertama</option>
                     <option value={0}>Semua Baris ({parsedRows.length.toLocaleString()})</option>
                   </select>
+
+                  <label className="flex items-center gap-3 cursor-pointer mt-2 group w-fit">
+                    <input 
+                      type="checkbox" 
+                      checked={isCsvScaled} 
+                      onChange={(e) => setIsCsvScaled(e.target.checked)} 
+                      disabled={isProcessing || isParsingCsv}
+                      className="h-5 w-5 border-2 border-black rounded bg-white text-indigo-600 focus:ring-0 cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50 accent-indigo-600 transition-all hover:translate-x-[-1px] hover:translate-y-[-1px] active:translate-x-[0px] active:translate-y-[0px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+                    />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-800 group-hover:text-indigo-700 transition-colors">
+                      Data CSV sudah di-scaling
+                    </span>
+                  </label>
                 </div>
 
                 {/* Submit button */}

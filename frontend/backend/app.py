@@ -30,7 +30,7 @@ WORKSPACE_ROOT = BACKEND_DIR.parent.parent
 SOURCE_DIR = WORKSPACE_ROOT / "done" / "model.pkl"
 
 # Expected files
-MODEL_FILE = "us-accident.pkl"
+MODEL_FILE = "UsAccidnt-Model(baru).pkl"
 SCALER_FILE = "us-scaler.pkl"
 EVAL_FILE = "us-evaluation.pkl"
 
@@ -116,10 +116,12 @@ except Exception as e:
 class PredictRequest(BaseModel):
     # Expects either a list of 113 float features or a dict mapping feature names to floats
     features: Union[List[float], Dict[str, float]]
+    is_scaled: bool = False
 
 class PredictBatchRequest(BaseModel):
     # Expects a list of dicts mapping feature names to values
     batch: List[Dict[str, Union[float, bool, int, None]]]
+    is_scaled: bool = False
 
 # ── API Endpoints ────────────────────────────────────────────────
 @app.get("/")
@@ -135,7 +137,7 @@ def root():
 def get_status():
     model_name = model.__class__.__name__ if model else None
     scaler_name = scaler.__class__.__name__ if scaler else None
-    
+
     return {
         "model": {
             "name": model_name,
@@ -184,21 +186,24 @@ def predict_severity(req: PredictRequest):
                 status_code=400,
                 detail="Feature name mapping is unavailable from the loaded scaler. Please pass features as an ordered list of floats."
             )
-        
+
         # Reconstruct list from dictionary based on expected feature names
         features_list = []
         for name in feature_names:
             features_list.append(req.features.get(name, 0.0))
-        
+
         raw_features = np.array(features_list).reshape(1, -1)
 
     try:
-        # Scale the features
-        scaled_features = scaler.transform(raw_features)
+        # Scale the features if not already scaled
+        if req.is_scaled:
+            processed_features = raw_features
+        else:
+            processed_features = scaler.transform(raw_features)
 
         # Run predictions
-        pred_class = int(model.predict(scaled_features)[0])
-        
+        pred_class = int(model.predict(processed_features)[0])
+
         # XGBoost was trained with mapped target variables (1,2,3,4) mapped to (0,1,2,3)
         # Severity level = mapped class + 1
         predicted_severity = pred_class + 1
@@ -207,7 +212,7 @@ def predict_severity(req: PredictRequest):
         confidence = 1.0
         probabilities = {}
         if hasattr(model, "predict_proba"):
-            probs = model.predict_proba(scaled_features)[0]
+            probs = model.predict_proba(processed_features)[0]
             confidence = float(probs[pred_class])
             probabilities = {str(i + 1): float(prob) for i, prob in enumerate(probs)}
 
@@ -253,16 +258,19 @@ def predict_severity_batch(req: PredictBatchRequest):
     raw_features = np.array(features_matrix)
 
     try:
-        # Scale the features
-        scaled_features = scaler.transform(raw_features)
+        # Scale the features if not already scaled
+        if req.is_scaled:
+            processed_features = raw_features
+        else:
+            processed_features = scaler.transform(raw_features)
 
         # Run predictions
-        pred_classes = model.predict(scaled_features)
-        
+        pred_classes = model.predict(processed_features)
+
         # Calculate prediction probabilities if available
         probs = None
         if hasattr(model, "predict_proba"):
-            probs = model.predict_proba(scaled_features)
+            probs = model.predict_proba(processed_features)
 
         results = []
         for i, pred_class_val in enumerate(pred_classes):
@@ -270,9 +278,8 @@ def predict_severity_batch(req: PredictBatchRequest):
             predicted_severity = pred_class + 1
             confidence = float(probs[i][pred_class]) if probs is not None else 1.0
             probabilities = {str(j + 1): float(prob) for j, prob in enumerate(probs[i])} if probs is not None else {}
-            
+
             results.append({
-                "index": i,
                 "predicted_class": pred_class,
                 "severity": predicted_severity,
                 "confidence": confidence,
@@ -315,7 +322,7 @@ async def predict_catdog(file: UploadFile = File(...)):
         input_shape = catdog_model.input_shape
         if isinstance(input_shape, list):
             input_shape = input_shape[0]
-        
+
         if input_shape and len(input_shape) >= 3:
             h = input_shape[1] if input_shape[1] is not None else 160
             w = input_shape[2] if input_shape[2] is not None else 160
